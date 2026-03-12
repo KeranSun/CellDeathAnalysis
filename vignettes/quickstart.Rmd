@@ -1,0 +1,325 @@
+---
+title: "Getting Started with CellDeathAnalysis"
+author: "Keran Sun"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with CellDeathAnalysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+## Introduction
+
+**CellDeathAnalysis** is an R package designed for comprehensive analysis of 
+cell death pathway-related genes in transcriptomic data. This vignette provides 
+a quick introduction to the main features of the package.
+
+### Supported Cell Death Types
+
+The package includes curated gene sets for 14 types of regulated cell death:
+
+1. **Ferroptosis** (铁死亡) - Iron-dependent cell death
+2. **Cuproptosis** (铜死亡) - Copper-dependent cell death  
+3. **Disulfidptosis** (二硫死亡) - Disulfide stress-induced death
+4. **Pyroptosis** (焦亡) - Inflammatory cell death
+5. **Necroptosis** (坏死性凋亡) - Programmed necrosis
+6. **Apoptosis** (凋亡) - Classical programmed cell death
+7. **Autophagy** (自噬) - Self-degradation process
+8. **PANoptosis** (泛凋亡) - Combined cell death
+9. **NETosis** - Neutrophil extracellular trap-associated death
+10. **Parthanatos** - PARP-dependent cell death
+11. **Entosis** - Cell-in-cell death
+12. **Oxeiptosis** - Oxidation-induced death
+13. **Alkaliptosis** - Alkaline pH-induced death
+14. **LDCD** - Lysosome-dependent cell death
+
+## Installation
+
+```{r install, eval=FALSE}
+# From GitHub
+devtools::install_github("yourusername/CellDeathAnalysis")
+
+# Load the package
+library(CellDeathAnalysis)
+```
+
+```{r load, echo=FALSE, message=FALSE}
+# For vignette building
+# library(CellDeathAnalysis)
+```
+
+## Exploring Gene Sets
+
+### List Available Pathways
+
+```{r list_pathways, eval=FALSE}
+# Simple list
+list_death_pathways()
+
+# Detailed information
+info <- list_death_pathways(detailed = TRUE)
+head(info)
+```
+
+### Get Pathway Information
+
+```{r pathway_info, eval=FALSE}
+# Get detailed information about a pathway
+get_pathway_info("ferroptosis")
+```
+
+### Retrieve Gene Sets
+
+```{r get_genes, eval=FALSE}
+# Get full gene set (with categories)
+ferro_full <- get_death_geneset("ferroptosis", type = "full")
+names(ferro_full)
+
+# Get simplified core genes
+ferro_simple <- get_death_geneset("ferroptosis", type = "simple")
+head(ferro_simple)
+
+# Get all genes as a vector
+ferro_all <- get_death_geneset("ferroptosis", type = "all")
+length(ferro_all)
+
+# Get specific category
+ferro_drivers <- get_death_geneset("ferroptosis", category = "driver")
+```
+
+### Multiple Pathways
+
+```{r multiple_pathways, eval=FALSE}
+# Get multiple pathways at once
+genesets <- get_death_geneset(
+  c("ferroptosis", "pyroptosis", "cuproptosis"),
+  type = "simple"
+)
+
+# Check overlap between pathways
+overlap <- check_pathway_overlap(c("ferroptosis", "apoptosis", "autophagy"))
+```
+
+## Calculating Pathway Scores
+
+### Prepare Expression Data
+
+Your expression data should be:
+- A matrix or data frame
+- Genes as rows, samples as columns
+- Row names should be gene symbols (HGNC format)
+
+```{r prepare_data, eval=FALSE}
+# Example: Create mock expression data
+set.seed(123)
+expr <- matrix(rnorm(500 * 100), nrow = 500, ncol = 100)
+rownames(expr) <- sample(get_all_death_genes(), 500)
+colnames(expr) <- paste0("Sample_", 1:100)
+```
+
+### Calculate Scores
+
+```{r calculate_scores, eval=FALSE}
+# Method 1: Z-score (fast, no dependencies)
+scores_zscore <- calculate_death_score(
+  expr, 
+  pathways = "all",
+  method = "zscore"
+)
+
+# Method 2: ssGSEA (requires GSVA package)
+scores_ssgsea <- calculate_death_score(
+  expr,
+  pathways = c("ferroptosis", "pyroptosis"),
+  method = "ssgsea"
+)
+
+# Method 3: Mean expression
+scores_mean <- calculate_death_score(
+  expr,
+  method = "mean"
+)
+```
+
+### View Results
+
+```{r view_scores, eval=FALSE}
+# Print summary
+print(scores_zscore)
+
+# View first few rows
+head(scores_zscore)
+
+# Summary statistics
+summary(scores_zscore)
+```
+
+## Visualization
+
+### Heatmap
+
+```{r heatmap, eval=FALSE}
+# Basic heatmap
+plot_death_heatmap(scores_zscore)
+
+# With sample annotations
+sample_info <- data.frame(
+  Group = rep(c("Control", "Treatment"), each = 50),
+  Stage = sample(c("I", "II", "III", "IV"), 100, replace = TRUE)
+)
+plot_death_heatmap(scores_zscore, annotation_col = sample_info)
+```
+
+### Boxplot Comparison
+
+```{r boxplot, eval=FALSE}
+# Compare groups
+group <- rep(c("Control", "Treatment"), each = 50)
+plot_death_boxplot(scores_zscore, group = group)
+
+# Select specific pathways
+plot_death_boxplot(
+  scores_zscore, 
+  group = group,
+  pathways = c("ferroptosis", "pyroptosis", "cuproptosis"),
+  ncol = 3
+)
+```
+
+### Radar Chart
+
+```{r radar, eval=FALSE}
+# Radar chart comparing groups
+plot_death_radar(scores_zscore, group = group)
+```
+
+### Correlation Plot
+
+```{r correlation, eval=FALSE}
+# Correlation between pathways
+plot_pathway_correlation(scores_zscore, method = "spearman")
+```
+
+### Score Distribution
+
+```{r distribution, eval=FALSE}
+# Density plot
+plot_score_distribution(scores_zscore, type = "density")
+
+# Violin plot by group
+plot_score_distribution(scores_zscore, type = "violin", group = group)
+```
+
+## Sample Classification
+
+### Classify by Score
+
+```{r classify, eval=FALSE}
+# Classify by median
+ferro_groups <- classify_by_score(scores_zscore$ferroptosis, method = "median")
+table(ferro_groups)
+
+# Classify by quantile
+ferro_groups_q <- classify_by_score(
+  scores_zscore$ferroptosis, 
+  method = "quantile",
+  quantile = 0.75
+)
+```
+
+### Calculate Death Index
+
+```{r death_index, eval=FALSE}
+# PCA-based composite index
+death_index <- calculate_death_index(scores_zscore, method = "pca")
+
+# Weighted mean
+weights <- c(ferroptosis = 2, pyroptosis = 1, apoptosis = 1)
+death_index_weighted <- calculate_death_index(
+  scores_zscore[, names(weights)],
+  weights = weights,
+  method = "weighted_mean"
+)
+```
+
+## Integration with Other Tools
+
+### Survival Analysis
+
+```{r survival, eval=FALSE}
+# Requires survival and survminer packages
+library(survival)
+library(survminer)
+
+# Prepare data
+surv_data <- data.frame(
+  time = clinical_data$survival_time,
+  status = clinical_data$status,
+  ferro_group = classify_by_score(scores_zscore$ferroptosis)
+)
+
+# Kaplan-Meier analysis
+fit <- survfit(Surv(time, status) ~ ferro_group, data = surv_data)
+ggsurvplot(fit, data = surv_data, pval = TRUE)
+```
+
+### Enrichment Analysis
+
+```{r enrichment, eval=FALSE}
+# Get genes for enrichment
+ferro_genes <- get_death_geneset("ferroptosis", type = "all")
+
+# Use with clusterProfiler
+library(clusterProfiler)
+library(org.Hs.eg.db)
+
+# Convert to Entrez IDs and perform GO enrichment
+# ... (your analysis code)
+```
+
+## Best Practices
+
+1. **Data Preprocessing**: Ensure your expression data is properly normalized
+   (TPM, FPKM, or log-transformed counts).
+
+2. **Gene Symbol Format**: Use official HGNC gene symbols for best matching.
+
+3. **Minimum Gene Overlap**: Pathways with fewer than 5 detected genes are 
+   automatically excluded.
+
+4. **Method Selection**:
+   - Use `ssgsea` or `gsva` for publication-quality results
+   - Use `zscore` or `mean` for quick exploratory analysis
+
+5. **Multiple Testing**: When comparing many pathways, consider adjusting 
+   p-values for multiple testing.
+
+## Session Info
+
+```{r session, eval=FALSE}
+sessionInfo()
+```
+
+## References
+
+1. Dixon SJ, et al. Ferroptosis: An Iron-Dependent Form of Nonapoptotic 
+   Cell Death. Cell. 2012;149(5):1060-1072.
+
+2. Tsvetkov P, et al. Copper induces cell death by targeting lipoylated 
+   TCA cycle proteins. Science. 2022;375(6586):1254-1261.
+
+3. Liu X, et al. Actin cytoskeleton vulnerability to disulfide stress 
+   mediates disulfidptosis. Nat Cell Biol. 2023;25(3):404-414.
+
+4. Hänzelmann S, Castelo R, Guinney J. GSVA: gene set variation analysis 
+   for microarray and RNA-Seq data. BMC Bioinformatics. 2013;14:7.
